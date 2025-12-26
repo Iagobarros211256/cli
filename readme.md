@@ -34,3 +34,9 @@ Ela permite abrir apps frequentes rapidamente, rodar qualquer comando Linux e ai
 ```bash
 git clone <repo-url>
 cd mycli
+
+
+ cli git:(main) ✗ go build -o mycli main.go
+
+➜  cli git:(main) ✗ ./mycli
+
