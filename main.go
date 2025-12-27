@@ -170,7 +170,7 @@ func main() {
 		switch cmdName {
 		case "play":
 			fmt.Println(getCommandColor(cmdName), "Abrindo Steam...\033[0m")
-			err := exec.Command("steam").Start()
+			err := exec.Command("setsid", "steam").Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir Steam:", err, "\033[0m")
 				sendNotification("MyCLI - Erro", "Falha ao abrir Steam!")
@@ -181,7 +181,7 @@ func main() {
 
 		case "rec":
 			fmt.Println(getCommandColor(cmdName), "Abrindo OBS Studio...\033[0m")
-			err := exec.Command("obs").Start()
+			err := exec.Command("setsid", "obs").Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir OBS:", err, "\033[0m")
 				sendNotification("MyCLI - Erro", "Falha ao abrir OBS Studio!")
@@ -220,7 +220,7 @@ func main() {
 
 		case "music":
 			fmt.Println(getCommandColor(cmdName), "Abrindo Spotify...\033[0m")
-			err := exec.Command("flatpak", "run", "com.spotify.Client").Start()
+			err := exec.Command("setsid", "flatpak", "run", "com.spotify.Client").Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir Spotify:", err, "\033[0m")
 				sendNotification("MyCLI - Erro", "Falha ao abrir Spotify")
@@ -244,6 +244,20 @@ func main() {
 				success = false
 			} else {
 				sendNotification("MyCLI", app+" abriu com sucesso!")
+			}
+		case "log":
+			logPath := os.Getenv("HOME") + "/.mycli_history.log"
+
+			fmt.Println("\033[36m--- MyCLI Logs ---\033[0m")
+
+			cmd := exec.Command("cat", logPath)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
+			err := cmd.Run()
+			if err != nil {
+				fmt.Println("\033[31mErro ao ler o log\033[0m")
+				success = false
 			}
 
 		default:
