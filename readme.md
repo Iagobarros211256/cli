@@ -12,6 +12,7 @@ Ela permite abrir apps frequentes rapidamente, rodar qualquer comando Linux e ai
   - `stream` → Steam + OBS
   - `dev` → VS Code + Docker
   - `music` → Spotify (via Flatpak)
+  - `log` → ve um resumo curto de logs
 - **Aliases curtos** para comandos frequentes:
   - `s` → `play`
   - `r` → `rec`
