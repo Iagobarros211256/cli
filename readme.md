@@ -1,6 +1,6 @@
-# MyCLI
+# FOX CLI
 
-**MyCLI** é uma CLI personalizada para Linux que funciona como um mini-terminal.  
+**FOX CLI** é uma CLI personalizada para Linux que funciona como um mini-terminal.  
 Ela permite abrir apps frequentes rapidamente, rodar qualquer comando Linux e ainda possui aliases e prompt colorido.
 
 ---
@@ -34,10 +34,13 @@ Ela permite abrir apps frequentes rapidamente, rodar qualquer comando Linux e ai
 1. **Clone ou baixe o código**:
 ```bash
 git clone <repo-url>
-cd mycli
+
+go build -o fox
 
 
- cli git:(main) ✗ go build -o mycli main.go
+sudo mv fox /usr/local/bin/fox
 
-➜  cli git:(main) ✗ ./mycli
+fox
+
+
 

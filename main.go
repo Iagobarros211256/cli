@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -104,13 +105,23 @@ func dynamicPrompt(lastCmd string) string {
 	cpu, ram := getSystemStats()
 	gpu := getGPUUsage()
 
-	return fmt.Sprintf("%s[%s | %s | CPU:%s | RAM:%s | GPU:%s] MyCLI> \033[0m",
+	return fmt.Sprintf("%s[%s | %s | CPU:%s | RAM:%s | GPU:%s] FOX> \033[0m",
 		color, timeStr, dir, cpu, ram, gpu)
 }
 
 // Função para log
 func logCommand(cmd string, success bool) {
-	f, err := os.OpenFile(os.Getenv("HOME")+"/.mycli_history.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	base := os.Getenv("HOME") + "/.foxcli"
+	os.MkdirAll(base, 0755)
+
+	logPath := os.Getenv("HOME") + "/.foxcli/history.log"
+
+	f, err := os.OpenFile(
+		logPath,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		0644,
+	)
+
 	if err != nil {
 		return
 	}
@@ -124,11 +135,29 @@ func logCommand(cmd string, success bool) {
 	f.WriteString(logLine)
 }
 
+func checkBinary(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func checkWritable(path string) bool {
+	testFile := path + "/.fox_test"
+	err := os.WriteFile(testFile, []byte("test"), 0644)
+	if err != nil {
+		return false
+	}
+	os.Remove(testFile)
+	return true
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	lastCmd := ""
 
-	fmt.Println("\033[36mBem-vindo ao MyCLI! Digite 'exit' para sair.\033[0m") // ciano
+	foxDir := os.Getenv("HOME") + "/.foxcli"
+	os.MkdirAll(foxDir, 0755)
+
+	fmt.Println("\033[36mBem-vindo a FOX CLI! Digite 'exit' para sair.\033[0m") // ciano
 
 	for {
 		fmt.Print(dynamicPrompt(lastCmd))
@@ -168,15 +197,120 @@ func main() {
 
 		// Comandos pré-definidos
 		switch cmdName {
+		case "doctor":
+			fmt.Println("\033[36m🩺 FOX Doctor — Diagnóstico do Sistema\033[0m")
+			fmt.Println()
+
+			// Sistema
+			fmt.Println("🔹 Sistema")
+			fmt.Println("OS:", runtime.GOOS)
+			fmt.Println("Shell:", os.Getenv("SHELL"))
+			fmt.Println("HOME:", os.Getenv("HOME"))
+			fmt.Println()
+
+			// Dependências
+			fmt.Println("🔹 Dependências")
+			deps := []string{
+				"notify-send",
+				"steam",
+				"obs",
+				"flatpak",
+				"code",
+			}
+
+			for _, d := range deps {
+				if checkBinary(d) {
+					fmt.Println("✔", d)
+				} else {
+					fmt.Println("✖", d, "(não encontrado)")
+				}
+			}
+			fmt.Println()
+
+			// GPU
+			fmt.Println("🔹 GPU")
+			gpuInfo, _ := exec.Command("bash", "-c", "lspci | grep -E 'VGA|3D'").Output()
+			info := strings.ToLower(string(gpuInfo))
+
+			switch {
+			case strings.Contains(info, "nvidia"):
+				if checkBinary("nvidia-smi") {
+					fmt.Println("✔ NVIDIA GPU — nvidia-smi OK")
+				} else {
+					fmt.Println("✖ NVIDIA GPU — nvidia-smi ausente")
+				}
+
+			case strings.Contains(info, "amd") || strings.Contains(info, "radeon"):
+				if checkBinary("radeontop") {
+					fmt.Println("✔ AMD GPU — radeontop OK")
+				} else {
+					fmt.Println("✖ AMD GPU — instale radeontop")
+				}
+
+			case strings.Contains(info, "intel"):
+				if checkBinary("intel_gpu_top") {
+					fmt.Println("⚠ Intel GPU detectada")
+					fmt.Println("  ↳ pode exigir CAP_PERFMON ou sudo")
+				} else {
+					fmt.Println("✖ Intel GPU — instale intel-gpu-tools")
+				}
+
+			default:
+				fmt.Println("✖ GPU não identificada")
+			}
+			fmt.Println()
+
+			// Arquivos da FOX
+			fmt.Println("🔹 Arquivos FOX CLI")
+			foxDir := os.Getenv("HOME") + "/.foxcli"
+			logFile := foxDir + "/history.log"
+
+			if _, err := os.Stat(foxDir); err == nil {
+				fmt.Println("✔", foxDir)
+			} else {
+				fmt.Println("✖", foxDir, "(não existe)")
+			}
+
+			if checkWritable(os.Getenv("HOME")) {
+				fmt.Println("✔ Escrita no HOME")
+			} else {
+				fmt.Println("✖ Sem permissão de escrita no HOME")
+			}
+
+			if _, err := os.Stat(logFile); err == nil {
+				fmt.Println("✔ Log encontrado")
+			} else {
+				fmt.Println("⚠ Log não existe (será criado automaticamente)")
+			}
+
+			fmt.Println()
+			fmt.Println("🩺 Diagnóstico concluído.")
+
+		case "cd":
+			var target string
+
+			if len(args) == 0 {
+				// cd sem argumentos → HOME
+				target = os.Getenv("HOME")
+			} else {
+				target = args[0]
+			}
+
+			err := os.Chdir(target)
+			if err != nil {
+				fmt.Println("\033[31mErro ao mudar diretório:\033[0m", err)
+				success = false
+			}
+
 		case "play":
 			fmt.Println(getCommandColor(cmdName), "Abrindo Steam...\033[0m")
 			err := exec.Command("setsid", "steam").Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir Steam:", err, "\033[0m")
-				sendNotification("MyCLI - Erro", "Falha ao abrir Steam!")
+				sendNotification("FOX CLI - Erro", "Falha ao abrir Steam!")
 				success = false
 			} else {
-				sendNotification("MyCLI", "Steam abriu com sucesso!")
+				sendNotification("FOX CLI", "Steam abriu com sucesso!")
 			}
 
 		case "rec":
@@ -184,10 +318,10 @@ func main() {
 			err := exec.Command("setsid", "obs").Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir OBS:", err, "\033[0m")
-				sendNotification("MyCLI - Erro", "Falha ao abrir OBS Studio!")
+				sendNotification("FOX CLI - Erro", "Falha ao abrir OBS Studio!")
 				success = false
 			} else {
-				sendNotification("MyCLI", "OBS Studio abriu com sucesso!")
+				sendNotification("FOX CLI", "OBS Studio abriu com sucesso!")
 			}
 
 		case "stream":
@@ -197,10 +331,10 @@ func main() {
 				err := exec.Command(app).Start()
 				if err != nil {
 					fmt.Println("\033[31mErro ao abrir", app+":", err, "\033[0m")
-					sendNotification("MyCLI - Erro", "Falha ao abrir "+app)
+					sendNotification("FOX CLI - Erro", "Falha ao abrir "+app)
 					success = false
 				} else {
-					sendNotification("MyCLI", app+" abriu com sucesso!")
+					sendNotification("FOX CLI", app+" abriu com sucesso!")
 				}
 			}
 
@@ -211,10 +345,10 @@ func main() {
 				err := exec.Command(app).Start()
 				if err != nil {
 					fmt.Println("\033[31mErro ao abrir", app+":", err, "\033[0m")
-					sendNotification("MyCLI - Erro", "Falha ao abrir "+app)
+					sendNotification("FOX CLI - Erro", "Falha ao abrir "+app)
 					success = false
 				} else {
-					sendNotification("MyCLI", app+" abriu com sucesso!")
+					sendNotification("FOX CLI", app+" abriu com sucesso!")
 				}
 			}
 
@@ -223,10 +357,10 @@ func main() {
 			err := exec.Command("setsid", "flatpak", "run", "com.spotify.Client").Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir Spotify:", err, "\033[0m")
-				sendNotification("MyCLI - Erro", "Falha ao abrir Spotify")
+				sendNotification("FOX CLI - Erro", "Falha ao abrir Spotify")
 				success = false
 			} else {
-				sendNotification("MyCLI", "Spotify abriu com sucesso!")
+				sendNotification("FOX CLI", "Spotify abriu com sucesso!")
 			}
 
 		case "open":
@@ -240,13 +374,13 @@ func main() {
 			err := exec.Command(app).Start()
 			if err != nil {
 				fmt.Println("\033[31mErro ao abrir", app+":", err, "\033[0m")
-				sendNotification("MyCLI - Erro", "Falha ao abrir "+app)
+				sendNotification("FOX CLI - Erro", "Falha ao abrir "+app)
 				success = false
 			} else {
-				sendNotification("MyCLI", app+" abriu com sucesso!")
+				sendNotification("FOX CLI", app+" abriu com sucesso!")
 			}
 		case "log":
-			logPath := os.Getenv("HOME") + "/.mycli_history.log"
+			logPath := os.Getenv("HOME") + "/.foxcli_history.log"
 
 			fmt.Println("\033[36m--- MyCLI Logs ---\033[0m")
 
